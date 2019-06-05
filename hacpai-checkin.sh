@@ -2,11 +2,15 @@
 
 host="hacpai.com"
 dailyUrl="https://www.hacpai.com/activity/checkin"
-# set your cookie
+# 设置cookie
 cookie=""
 userAgent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36"
 file="hacpai.txt"
 time=$(date "+%Y-%m-%d %H:%M:%S")
+sendDate=$(date "+%Y-%m-%d")
+# 设置邮件通知人
+mailTo=
+checkInResult=hacpai_checkin_result.html
 
 #href=`curl -H "host:$host" -H "cookie:$cookie" $dailyUrl |grep "?token="|awk '{print $2}'`
 
@@ -33,11 +37,7 @@ function getCurrentCheckDays(){
   echo $days
 }
 
-curl -H "host:$host" -H "cookie:$cookie" $dailyUrl > $file
-
-result=`cat $file |grep "?token="|awk '{print $2}'`
-
-if [ -z "$result" ]; then
+function fetchCheckInfo() {
   checkLog="当前时间：$time"
   checkLog="$checkLog\n==========今日已签到，正在查询签到信息=========="
 
@@ -53,7 +53,16 @@ if [ -z "$result" ]; then
 
   echo -e $checkLog
   echo -e $checkLog >> hacpai_check.log
+  echo -e ${checkLog//"\n"/"<br>"} > $checkInResult
+  mail -s "$(echo -e "Hacpai-$sendDate-已签到提醒\nContent-Type: text/html; charset=utf-8")" $mailTo < $checkInResult
+}
 
+curl -H "host:$host" -H "cookie:$cookie" $dailyUrl > $file
+
+result=`cat $file |grep "?token="|awk '{print $2}'`
+
+if [ -z "$result" ]; then
+  fetchCheckInfo
 fi
 
 if [ -n "$result" ]; then
@@ -70,6 +79,11 @@ if [ -n "$result" ]; then
   checkLog="$checkLog\n==========签到结束==========\n"
   echo -e $checkLog
   echo -e $checkLog >> hacpai_checkin.log
+  
+  curl -H "host:$host" -H "cookie:$cookie" $dailyUrl > $file
+
+  fetchCheckInfo
+
 fi
 
 
